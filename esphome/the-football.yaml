@@ -1,0 +1,358 @@
+substitutions:
+  devicename: the-football
+
+esphome:
+  name: ${devicename}
+  platform: ESP32
+  board: esp-wrover-kit
+
+wifi:
+  ssid: !secret WIFI_ssid
+  password: !secret WIFI_password
+  fast_connect: on
+  ap:
+    ssid: ${devicename}
+    password: !secret ESP_HOME_API
+
+captive_portal:
+logger:
+
+api:
+  password: !secret ESP_HOME_API
+  encryption:
+    key: !secret ESPhome_encryption
+    
+  services:
+    - service: play_rtttl
+      variables:
+        song_str: string
+      then:
+        - rtttl.play:
+            rtttl: !lambda 'return song_str;'
+            
+ota:
+  password: !secret ESP_HOME_API
+
+rtttl:
+  output: buzzer
+
+sensor:
+  - platform: wifi_signal
+    name: ${devicename} WiFi
+    update_interval: 60s
+      
+  - platform: rotary_encoder
+    name: "C1"
+    id: C1
+    pin_a: GPIO27
+    pin_b: GPIO14
+    min_value: 0
+    max_value: 40
+    resolution: 2
+
+####################################################################################################
+## Light
+####################################################################################################
+light:
+######################################################################
+## status led
+######################################################################
+  - platform: status_led
+    name: ${devicename} status led
+    pin: GPIO2
+######################################################################
+## Led strip
+######################################################################
+  - platform: fastled_clockless
+    name: "kit"
+    id: "kit"
+    chipset: WS2812B
+    pin: GPIO23
+    num_leds: 40
+    rgb_order: GRB
+    effects:
+      - addressable_scan:
+          move_interval: 10ms
+          scan_width: 1
+      - addressable_rainbow:
+      - !include led_effects/candel.yaml
+      - !include led_effects/fire.yaml
+      - !include led_effects/flames.yaml
+      - !include led_effects/lightning.yaml
+      - !include led_effects/police.yaml
+      - addressable_color_wipe:
+      - addressable_lambda:
+      # Thanks to:
+      # https://community.home-assistant.io/t/esphome-fast-led-ws2812b-percentage-effect/284739/2?u=mathijs
+          name: "level from connection"
+          lambda: |-
+           const int leds_to_use=it.size();  // you can change that if you don't want all the leds to be used
+
+            float water_percentage = id(C1).state;
+            if (isnan(water_percentage)) {
+              water_percentage = 0;
+            }
+            // 40 because rotary_encoder only has 40 steps
+            int full_leds = int(leds_to_use*water_percentage/40.0);
+            // set those leds to the current_color of the light
+            it.range(0, full_leds) = current_color;
+
+            // if full_leds is not the last led, render a remaining fraction of a led dimmed
+            if (full_leds < leds_to_use) {
+              it[full_leds] = current_color*((leds_to_use*water_percentage/40.0-full_leds)*80);
+            }
+
+            // set the remaing leds to black
+            if (full_leds+1 < leds_to_use) {
+              it.range(full_leds+1, leds_to_use) = ESPColor::BLACK; // change the color to something else if you want
+            }
+      - addressable_lambda:
+          name: "level to connection"
+          lambda: |-
+           const int leds_to_use=it.size();  // you can change that if you don't want all the leds to be used
+
+            float water_percentage = id(C1).state;
+            if (isnan(water_percentage)) {
+              water_percentage = 0;
+            }
+            // number of leds that are drawn with full brightness
+            int full_leds = int(leds_to_use*(1-water_percentage/40.0));
+            // set those leds to the current_color of the light
+            it.range(0, full_leds) = ESPColor::BLACK;
+
+            // if full_leds is not the last led, render a remaining fraction of a led dimmed
+            if (full_leds < leds_to_use) {
+              it[full_leds] = ESPColor::BLACK*((leds_to_use*(1-water_percentage/40.0)-full_leds)*80);
+            }
+
+            // set the remaing leds to black
+            if (full_leds+1 < leds_to_use) {
+              it.range(full_leds+1, leds_to_use) = current_color; // change the color to something else if you want
+            }
+            
+######################################################################
+## The binary lights
+######################################################################
+  - platform: binary
+    name: "D1"
+    output: output_D1
+    id: D1
+    effects:
+      - strobe:
+          name: blink_slow
+          colors:
+            - state: true
+              duration: 1s
+            - state: false
+              duration: 1s
+  - platform: binary
+    name: "D2"
+    output: output_D2
+    id: D2
+    effects:
+      - strobe:
+          name: blink_slow
+          colors:
+            - state: true
+              duration: 1s
+            - state: false
+              duration: 1s
+  - platform: binary
+    name: "D3"
+    output: output_D3
+    id: D3
+    effects:
+      - strobe:
+          name: blink_slow
+          colors:
+            - state: true
+              duration: 1s
+            - state: false
+              duration: 1s
+  - platform: binary
+    name: "D4"
+    output: output_D4
+    id: D4
+    effects:
+      - strobe:
+          name: blink_slow
+          colors:
+            - state: true
+              duration: 1s
+            - state: false
+              duration: 1s
+  - platform: binary
+    name: "D5"
+    output: output_D5
+    id: D5
+    effects:
+      - strobe:
+          name: blink_slow
+          colors:
+            - state: true
+              duration: 1s
+            - state: false
+              duration: 1s
+
+####################################################################################################
+## Output
+####################################################################################################
+output:
+######################################################################
+## Buzzer
+######################################################################
+  - platform: ledc
+    pin: GPIO13
+    id: buzzer
+    
+######################################################################
+## The binary lights (output)
+######################################################################
+  - platform: gpio
+    pin: GPIO21
+    id: "output_D3"
+    inverted: False
+  - platform: gpio
+    pin: GPIO18
+    id: "output_D2"
+    inverted: False
+  - platform: gpio
+    pin: GPIO17
+    id: "output_D1"
+    inverted: False
+  - platform: gpio
+    pin: GPIO4
+    id: "output_D4"
+    inverted: False
+  - platform: gpio
+    pin: GPIO0
+    id: "output_D5"
+    inverted: False
+
+####################################################################################################
+## The buttons/switches
+####################################################################################################
+binary_sensor:
+######################################################################
+## A
+######################################################################
+  - name: "A1"
+    platform: gpio
+    pin:
+      number: 34
+    on_press:
+      then:
+      - rtttl.play: 'scale_up:d=32,o=5,b=100:c,c#,d#,e,f#,g#,a#,b'
+    on_release:
+      then:
+      - rtttl.play: 'scale_douwn:d=32,o=5,b=100:b,a#,g#,f#,e,d#,c#,c'
+  - name: "A2"
+    platform: gpio
+    pin:
+      number: 35
+    on_press:
+      then:
+      - if:
+          condition:
+            text_sensor.state:
+              id: beep
+              state: 'on'
+          then:
+          - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+    on_release:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+  - name: "A3"
+    platform: gpio
+    pin:
+      number: 32
+      mode: INPUT_PULLDOWN
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+    on_release:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6' 
+  - name: "A4"
+    platform: gpio
+    pin:
+      number: 33
+      mode: INPUT_PULLDOWN
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+    on_release:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+  - name: "A5"
+    platform: gpio
+    pin:
+      number: 25
+      mode: INPUT_PULLDOWN
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+    on_release:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+  - name: "A6"
+    platform: gpio
+    pin:
+      number: 26
+      mode: INPUT_PULLDOWN
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+    on_release:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+
+######################################################################
+## D
+######################################################################
+  - name: "D1"
+    platform: gpio
+    pin:
+      number: 5
+      mode: INPUT_PULLDOWN
+      inverted: true
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+  - name: "D2"
+    platform: gpio
+    pin:
+      number: 19
+      mode: INPUT_PULLDOWN
+      inverted: true
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+  - name: "D3"
+    platform: gpio
+    pin:
+      number: 22
+      mode: INPUT_PULLDOWN
+      inverted: true
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+  - name: "D4"
+    platform: gpio
+    pin:
+      number: 16
+      mode: INPUT_PULLDOWN
+      inverted: true
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+  - name: "D5"
+    platform: gpio
+    pin:
+      number: 15
+      mode: INPUT_PULLDOWN
+      inverted: true
+    on_press:
+      then:
+      - rtttl.play: 'beep:d=4,o=5,b=200:16e6'
+
