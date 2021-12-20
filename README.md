@@ -1,5 +1,6 @@
 # The_Football
 ESP-Home / Home Asistant controller
 
-# layout and names of the buttons:
-<img src="the football-Model.png">
+# layout
+Layout and names of the buttons and switches:
+<img src="images/the football-Model.png">
